@@ -1,14 +1,11 @@
 require('dotenv').config()
-require("./src/model/admin")
-require("./src/model/resident")
-require("./src/model/security")
-require("./src/model/account")
+require("./src/model/users")
 
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const cors = require('cors')
-const authRoutes = require("./src/routes/authenticationRoutes")
+const adminRoutes = require("./src/routes/adminRoutes")
 
 
 const app = express();
@@ -18,8 +15,6 @@ app.use(cors())
 
 // Middleware for parsing JSON requests
 app.use(bodyParser.json());
-
-app.use(authRoutes);
 
 // MongoDB connection URI
 const mongoUri = process.env.MONGOURI
@@ -31,6 +26,12 @@ mongoose.connect(mongoUri);
 mongoose.connection.on("connected", () => {
   console.log("Connected to mongo instance");
 });
+
+app.get("/", (req, res) => {
+  res.send('BMS server is online');
+});
+
+app.use("/admin", adminRoutes);
 
 // Event handler for MongoDB connection error
 mongoose.connection.on("error", (err) => {

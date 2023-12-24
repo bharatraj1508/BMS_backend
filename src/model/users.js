@@ -1,13 +1,19 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
+const createdByUserSchema = new mongoose.Schema({
+  _id: mongoose.Schema.Types.ObjectId,
+  name: String,
+  createdOn: Date
+});
+
 // Defining the user schema
 const userSchema = new mongoose.Schema({
-  fname: {
+  firstName: {
     type: String,
     required: true,
   },
-  lname: {
+  lastName: {
     type: String,
     required: true,
   },
@@ -22,13 +28,38 @@ const userSchema = new mongoose.Schema({
   },
   accountType: {
     type: String,
-    default: "admin"
+    enum: ["user", "admin", "superadmin"],
   },
-  role: {
-    type: String,
-    required: true
-  }
+  building: {
+    type: String
+  },
+  isSuperAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
+  isSupervisor: {
+    type: Boolean,
+    default: false
+  },
+  isManager: {
+    type: Boolean,
+    default: false
+  },
+  isSecurity: {
+    type: Boolean,
+    default: false
+  },
+  isResident: {
+    type: Boolean,
+    default: false
+  },
+  userCreatedby: createdByUserSchema
 });
+
 
 // Middleware function executed before saving the user
 userSchema.pre("save", function (next) {
@@ -72,9 +103,9 @@ userSchema.methods.comparePassword = function (userPassword) {
           return reject(!isCompared);
         }
       })
-      .catch((err) => res.send(err.message));
+      .catch((err) => console.log(err.message));
   });
 };
 
 // Creating the User model
-mongoose.model("Admin", userSchema);
+mongoose.model("User", userSchema);
