@@ -1,85 +1,237 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
 const User = mongoose.model("User");
 const requireToken = require("../middleware/requireToken");
-const isSuperAdminOrAdmin = require("../middleware/isSuperAdminOrAdmin")
+const isSuperAdminOrAdmin = require("../middleware/isSuperAdminOrAdmin");
 
 const router = express.Router();
+
+// function to check how many true values are there in the user roles (it wont allow more than one true values)
+const checkTrueRoles = (req) => {
+  const roles = [
+    "isSuperAdmin",
+    "isAdmin",
+    "isSupervisor",
+    "isManager",
+    "isSecurity",
+    "isResident",
+  ];
+  const trueRoles = roles.filter((role) => JSON.parse(req.body[role]));
+
+  return trueRoles.length !== 1;
+};
+
+// function to check is the admin does not make or update superadmin or admin accounts
+const checkAdminChange = (req, adminRoles) => {
+  if (
+    (JSON.parse(adminRoles.isSuperAdmin) &&
+      req.user.accountType !== "superadmin") ||
+    (JSON.parse(adminRoles.isAdmin) && req.user.accountType !== "superadmin")
+  ) {
+    return true;
+  }
+};
+
+// function to assign correct account type in case if its not fill by the user or wrong account type.
+const correctAccountType = (accountRoles, accountType) => {
+  if (JSON.parse(accountRoles.isSuperAdmin)) {
+    accountType = "superadmin";
+  } else if (JSON.parse(accountRoles.isAdmin)) {
+    accountType = "admin";
+  } else if (
+    JSON.parse(accountRoles.isManager) ||
+    JSON.parse(accountRoles.isSupervisor) ||
+    JSON.parse(accountRoles.isSecurity) ||
+    JSON.parse(accountRoles.isResident)
+  ) {
+    accountType = "user";
+  }
+
+  return accountType;
+};
+
+// Routes starts here
 
 /*
 @type     -   POST
 @route    -   /admin/signup-user
 @desc     -   Endpoint to signup any account. Admins cannot create superadmin accounts, user account has to be superadmin to create superadmin account. 
-@access   -   private (only accessible to admins)
+@access   -   private (only accessible to admins/superadmins)
 */
-router.post("/signup-user", requireToken, isSuperAdminOrAdmin, async (req, res) => {
-  const { firstName, lastName, email, password, building, isSuperAdmin, isAdmin, isSupervisor, isManager, isSecurity, isResident  } = req.body;
-  let { accountType } = req.body;
 
-  // checking that more than one value should not be true 
-  const roles = ["isSuperAdmin", "isAdmin", "isSupervisor", "isManager", "isSecurity", "isResident"];
-  const trueRoles = roles.filter(role => JSON.parse(req.body[role]) );
-
-  if (trueRoles.length !== 1) {
-    return res.status(406).send({error: "Only one role should be set to true"})
-  }
-
-  if ((JSON.parse(isSuperAdmin) && req.user.accountType !== "superadmin") || (JSON.parse(isAdmin) && (req.user.accountType !== "superadmin"))) {
-      return res.status(403).send({ error: "Admins cannot create superadmin or admin accounts" });
-  }
-
-
-  // make sure the account type should be same according to the role assign
-  if(JSON.parse(isSuperAdmin)) {
-    accountType = "superadmin"
-  }
-  else if(JSON.parse(isAdmin)) {
-    accountType = "admin"
-  }
-  else if ((JSON.parse(isManager)) || (JSON.parse(isSupervisor)) || (JSON.parse(isSecurity)) || (JSON.parse(isResident))) {
-    accountType = "user"
-  }
-  
+router.get("/search", requireToken, isSuperAdminOrAdmin, async (req, res) => {
+  const { email } = req.body;
   try {
-    const user = new User({ firstName, lastName, email, password, accountType, building, isSuperAdmin, isAdmin, isSupervisor, isManager, isSecurity, isResident, userCreatedby: {
-      _id: req.user._id,
-      name: `${req.user.firstName} ${req.user.lastName}`,
-      createdOn: new Date()
-    }});
-    await user.save();
-    res.send({ message: "Account Created Succesfully"});
+    const user = await User.findOne({ email: email }).select("-password");
+    res.status(200).send({ user });
   } catch (err) {
-    return res.status(500).send({error: err.message});
+    res.status(500).send({ error: err });
   }
 });
 
 /*
 @type     -   POST
-@route    -   /admin/signin
-@desc     -   Endpoint to signin the accounts.
-@access   -   public
+@route    -   /admin/signup-user
+@desc     -   Endpoint to signup any account. Admins cannot create superadmin accounts, user account has to be superadmin to create superadmin account. 
+@access   -   private (only accessible to admins/superadmins)
 */
-router.post("/signin", async (req, res) => {
-    const { email, password } = req.body;
+router.post(
+  "/signup-user",
+  requireToken,
+  isSuperAdminOrAdmin,
+  async (req, res) => {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      building,
+      isActive,
+      isSuperAdmin,
+      isAdmin,
+      isSupervisor,
+      isManager,
+      isSecurity,
+      isResident,
+    } = req.body;
+    let { accountType } = req.body;
 
-    if (!email || !password) {
-      return res.status(422).send({ error: "Must provide email and password" });
-    }
-  
-    const user = await User.findOne({ email });
+    const accountRoles = {
+      isSuperAdmin,
+      isAdmin,
+      isManager,
+      isSupervisor,
+      isSecurity,
+      isResident,
+    };
 
-    if (!user) {
-      return res.status(404).send({ error: "Invalid email or password" });
+    const adminRoles = {
+      isSuperAdmin,
+      isAdmin,
+    };
+
+    if (checkTrueRoles(req)) {
+      return res
+        .status(406)
+        .send({ error: "Only one role should be set to true" });
     }
-    
+
+    if (checkAdminChange(req, adminRoles)) {
+      return res
+        .status(403)
+        .send({ error: "Admins cannot create superadmin or admin accounts" });
+    }
+
+    accountType = correctAccountType(accountRoles, accountType);
+
     try {
-      await user.comparePassword(password);
-      const token = jwt.sign({ userId: user._id }, process.env.MY_SECRET_KEY);
-      res.send({ user, token });
+      const user = new User({
+        firstName,
+        lastName,
+        email,
+        password,
+        accountType,
+        building,
+        isActive,
+        isSuperAdmin,
+        isAdmin,
+        isSupervisor,
+        isManager,
+        isSecurity,
+        isResident,
+        userCreatedby: {
+          _id: req.user._id,
+          name: `${req.user.firstName} ${req.user.lastName}`,
+          createdOn: new Date(),
+        },
+      });
+      await user.save();
+      res.send({ message: "Account Created Succesfully", user });
     } catch (err) {
-      res.status(500).send({ error: err.message });
+      return res.status(500).send({ error: err.message });
     }
-  });
-  
+  }
+);
+
+/*
+@type     -   PUT
+@route    -   /admin/update
+@desc     -   Endpoint to update an existing account. Admins cannot update account to superadmin or admin. 
+@access   -   private (only accessible to admins/superadmins)
+*/
+
+router.put("/update", requireToken, isSuperAdminOrAdmin, async (req, res) => {
+  const userId = req.query.id;
+
+  const {
+    isSuperAdmin,
+    isAdmin,
+    isSupervisor,
+    isManager,
+    isSecurity,
+    isResident,
+  } = req.body;
+
+  const accountRoles = {
+    isSuperAdmin,
+    isAdmin,
+    isManager,
+    isSupervisor,
+    isSecurity,
+    isResident,
+  };
+
+  const adminRoles = {
+    isSuperAdmin,
+    isAdmin,
+  };
+
+  const updateFields = {};
+
+  // Iterate through the request body and populate the updateFields object
+  for (const key in req.body) {
+    if (
+      req.body[key] !== undefined &&
+      req.body[key] !== null &&
+      req.body[key] !== ""
+    ) {
+      updateFields[key] = req.body[key];
+    }
+  }
+
+  if (checkTrueRoles(req)) {
+    return res
+      .status(406)
+      .send({ error: "Only one role should be set to true" });
+  }
+
+  if (checkAdminChange(req, adminRoles)) {
+    return res.status(403).send({
+      error: "Admins cannot create or update accounts to superadmin or admin",
+    });
+  }
+
+  updateFields.accountType = correctAccountType(
+    accountRoles,
+    updateFields.accountType
+  );
+
+  try {
+    await User.updateOne(
+      { _id: userId },
+      {
+        $set: updateFields,
+        lastUpdatedBy: {
+          _id: req.user._id,
+          name: `${req.user.firstName} ${req.user.lastName}`,
+          updatedOn: new Date(),
+        },
+      }
+    );
+    res.status(200).send({ message: "Account updated successfully" });
+  } catch (err) {
+    return res.status(500).send({ error: err.message });
+  }
+});
+
 module.exports = router;

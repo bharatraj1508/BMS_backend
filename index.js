@@ -1,23 +1,23 @@
-require('dotenv').config()
-require("./src/model/users")
+require("dotenv").config();
+require("./src/model/users");
 
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
-const cors = require('cors')
-const adminRoutes = require("./src/routes/adminRoutes")
-
+const cors = require("cors");
+const adminRoutes = require("./src/routes/adminRoutes");
+const publicAuthRoutes = require("./src/routes/publicAuthRoutes");
 
 const app = express();
 
 //Middleware for allowing cross-origin HTTP requests
-app.use(cors())
+app.use(cors());
 
 // Middleware for parsing JSON requests
 app.use(bodyParser.json());
 
 // MongoDB connection URI
-const mongoUri = process.env.MONGOURI
+const mongoUri = process.env.MONGOURI;
 
 // Connecting to MongoDB
 mongoose.connect(mongoUri);
@@ -28,10 +28,12 @@ mongoose.connection.on("connected", () => {
 });
 
 app.get("/", (req, res) => {
-  res.send('BMS server is online');
+  res.send("BMS server is online");
 });
 
 app.use("/admin", adminRoutes);
+
+app.use(publicAuthRoutes);
 
 // Event handler for MongoDB connection error
 mongoose.connection.on("error", (err) => {

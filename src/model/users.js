@@ -4,7 +4,13 @@ const bcrypt = require("bcryptjs");
 const createdByUserSchema = new mongoose.Schema({
   _id: mongoose.Schema.Types.ObjectId,
   name: String,
-  createdOn: Date
+  createdOn: Date,
+});
+
+const updatedByUserSchema = new mongoose.Schema({
+  _id: mongoose.Schema.Types.ObjectId,
+  name: String,
+  updatedOn: Date,
 });
 
 // Defining the user schema
@@ -31,35 +37,39 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin", "superadmin"],
   },
   building: {
-    type: String
+    type: String,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
   isSuperAdmin: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isAdmin: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isSupervisor: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isManager: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isSecurity: {
     type: Boolean,
-    default: false
+    default: false,
   },
   isResident: {
     type: Boolean,
-    default: false
+    default: false,
   },
-  userCreatedby: createdByUserSchema
+  userCreatedby: createdByUserSchema,
+  lastUpdatedBy: updatedByUserSchema,
 });
-
 
 // Middleware function executed before saving the user
 userSchema.pre("save", function (next) {
