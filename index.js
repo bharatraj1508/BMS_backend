@@ -1,5 +1,6 @@
 require("dotenv").config();
 require("./src/model/users");
+require("./src/model/audit");
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -7,6 +8,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const adminRoutes = require("./src/routes/adminRoutes");
 const publicAuthRoutes = require("./src/routes/publicAuthRoutes");
+// const requireToken = require("./src/middleware/requireToken")
 
 const app = express();
 

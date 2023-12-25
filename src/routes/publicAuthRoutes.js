@@ -12,25 +12,28 @@ const router = express.Router();
 @access   -   public
 */
 router.post("/signin", async (req, res) => {
-    const { email, password } = req.body;
-
+  const { email, password } = req.body;
+  try {
     if (!email || !password) {
-      return res.status(422).send({ error: "Must provide email and password" });
+      throw new Error("Must provide email and password");
     }
-  
+
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).send({ error: "Invalid email or password" });
+      throw new Error("Invalid email or password");
     }
-    
-    try {
-      await user.comparePassword(password);
-      const token = jwt.sign({ userId: user._id }, process.env.MY_SECRET_KEY);
-      res.send({ user, token });
-    } catch (err) {
-      res.status(500).send({ error: err.message });
+
+    if (!user.isActive) {
+      throw new Error("User is inactive. Contact admin");
     }
-  });
-  
+
+    await user.comparePassword(password);
+    const token = jwt.sign({ userId: user._id }, process.env.MY_SECRET_KEY);
+    res.send({ user, token });
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
+
 module.exports = router;
