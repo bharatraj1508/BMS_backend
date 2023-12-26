@@ -18,13 +18,13 @@ module.exports = (req, res, next) => {
   // Verify the token
   jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
     if (err) {
-      return res.status(401).send({ error: "You must be logged in." });
+      return res.status(401).send({ error: err });
     }
     // Extract the userId from the payload
     const { userId } = payload;
     // Find the user in the database using the userId
-    const user = await User.findById(userId).select('-password');
-    
+    const user = await User.findById(userId).select("-password");
+
     // Assign the user object to the req object for further use in the route handlers
     req.user = user;
 

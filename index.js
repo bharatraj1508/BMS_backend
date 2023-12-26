@@ -1,6 +1,7 @@
 require("dotenv").config();
 require("./src/model/users");
 require("./src/model/audit");
+require("./src/model/building");
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -8,7 +9,9 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const adminRoutes = require("./src/routes/adminRoutes");
 const publicAuthRoutes = require("./src/routes/publicAuthRoutes");
-// const requireToken = require("./src/middleware/requireToken")
+const buildingRoutes = require("./src/routes/buidling/crudRoutes");
+const amenitiesRoutes = require("./src/routes/buidling/amenitiesRoutes");
+const combinedRouter = express.Router();
 
 const app = express();
 
@@ -34,6 +37,11 @@ app.get("/", (req, res) => {
 });
 
 app.use("/admin", adminRoutes);
+
+combinedRouter.use(buildingRoutes);
+combinedRouter.use(amenitiesRoutes);
+
+app.use("/building", combinedRouter);
 
 app.use(publicAuthRoutes);
 
