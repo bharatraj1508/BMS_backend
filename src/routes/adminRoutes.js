@@ -139,7 +139,7 @@ router.post(
         userCreatedby: {
           _id: req.user._id,
           name: `${req.user.firstName} ${req.user.lastName}`,
-          createdOn: new Date(),
+          timestamp: new Date(),
         },
       });
 
@@ -233,7 +233,7 @@ router.put("/update", requireToken, isSuperAdminOrAdmin, async (req, res) => {
         lastUpdatedBy: {
           _id: req.user._id,
           name: `${req.user.firstName} ${req.user.lastName}`,
-          updatedOn: new Date(),
+          timestamp: new Date(),
         },
       }
     );
