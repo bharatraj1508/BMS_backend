@@ -1,8 +1,7 @@
 const isSuperAdmin = async (req, res, next) => {
-  const allowedUser = ["superadmin", "admin"];
-  const { accountType } = req.user;
+  const { isAdmin, isSuperAdmin } = req.user;
 
-  if (!allowedUser.includes(accountType)) {
+  if (!isAdmin && !isSuperAdmin) {
     return res
       .status(401)
       .json({ error: "Superadmin/admin access necessary." });
