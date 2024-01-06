@@ -15,6 +15,7 @@ const {
 const { createAudit } = require("../../../utils/auditfunctions");
 
 const { sendEmailVerification } = require("../../../utils/mailFunction");
+const { emailToken } = require("../../../security/tokens");
 
 const router = express.Router();
 
@@ -125,6 +126,8 @@ router.post("/user/signup", async (req, res) => {
 
         const hashValue = randomString(128);
 
+        const token = emailToken(hashValue);
+
         const hash = new Hash({
           userId: user._id,
           hash: hashValue,
@@ -132,13 +135,12 @@ router.post("/user/signup", async (req, res) => {
 
         await hash.save();
 
-        sendEmailVerification(res, user.email, hashValue);
+        sendEmailVerification(res, user.email, token);
+        res.send({ message: "Account Created Successfully", user });
       } else {
         throw new Error("unable to save user");
       }
     });
-
-    res.send({ message: "Account Created Successfully" });
   } catch (err) {
     details = {
       action: "insert",

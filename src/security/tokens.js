@@ -5,7 +5,9 @@ const setToken = (id) => {
   const accessToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
     expiresIn: "1h",
   });
-  const refreshToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY);
+  const refreshToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
+    expiresIn: "1d",
+  });
 
   const token = {
     accessToken,
@@ -15,23 +17,36 @@ const setToken = (id) => {
   return token;
 };
 
-const setNewAccessToken = (refreshToken) => {
+const setNewAccessToken = (res, refreshToken) => {
   var accessToken;
-  jwt.verify(refreshToken, "BHARAT_VERMA_DEV", async (err, payload) => {
-    if (err) {
-      return res.status(401).send({ error: err });
-    }
-    // Extract the userId from the payload
-    const { userId } = payload;
-    accessToken = jwt.sign({ userId: userId }, process.env.MY_SECRET_KEY, {
-      expiresIn: "1h",
+  try {
+    jwt.verify(refreshToken, "BHARAT_VERMA_DEV", async (err, payload) => {
+      if (err) {
+        return res.status(401).send({ error: err });
+      }
+      // Extract the userId from the payload
+      const { userId } = payload;
+      accessToken = jwt.sign({ userId: userId }, process.env.MY_SECRET_KEY, {
+        expiresIn: "1h",
+      });
     });
+
+    return accessToken;
+  } catch (err) {
+    return null;
+  }
+};
+
+const emailToken = (hashValue) => {
+  const mailToken = jwt.sign({ hash: hashValue }, process.env.MY_SECRET_KEY, {
+    expiresIn: "15m",
   });
 
-  return accessToken;
+  return mailToken;
 };
 
 module.exports = {
   setToken,
   setNewAccessToken,
+  emailToken,
 };

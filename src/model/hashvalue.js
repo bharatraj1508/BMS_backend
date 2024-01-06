@@ -5,6 +5,7 @@ const hashSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
+    unique: true,
   },
   hash: {
     type: String,
