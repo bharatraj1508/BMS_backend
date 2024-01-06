@@ -9,7 +9,7 @@ const sendEmailVerification = (res, email, token) => {
     service: "Gmail",
     auth: {
       user: "bharat.raj1508@gmail.com",
-      pass: "kymq cnnk yani yqkg",
+      pass: process.env.MAILER_PASS,
     },
   });
 
