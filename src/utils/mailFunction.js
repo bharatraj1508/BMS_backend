@@ -3,9 +3,6 @@ const nodemailer = require("nodemailer");
 
 const sendEmailVerification = (res, email, token) => {
   const transporter = nodemailer.createTransport({
-    host: "smtp.forwardemail.net",
-    port: 465,
-    secure: true,
     service: "Gmail",
     auth: {
       user: "bharat.raj1508@gmail.com",
