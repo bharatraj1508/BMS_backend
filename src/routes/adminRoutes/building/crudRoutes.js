@@ -2,8 +2,8 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const Building = mongoose.model("Building");
-const requireToken = require("../../middleware/requireToken");
-const isSuperAdminOrAdmin = require("../../middleware/isSuperAdminOrAdmin");
+const requireToken = require("../../../middleware/requireToken");
+const isSuperAdminOrAdmin = require("../../../middleware/isSuperAdminOrAdmin");
 
 const router = express.Router();
 
@@ -11,11 +11,11 @@ router.use(requireToken);
 
 /*
 @type     -   GET
-@route    -   /building/search
-@desc     -   Endpoint to get all the buidling list
+@route    -   /building/list
+@desc     -   Endpoint to get all the building list
 @access   -   private (only accessible to admins/superadmins)
 */
-router.get("/search", async (req, res) => {
+router.get("/building/list", async (req, res) => {
   try {
     const buildings = await Building.find();
     res.status(200).send({ buildings });
@@ -30,7 +30,7 @@ router.get("/search", async (req, res) => {
 @desc     -   Endpoint to get one buliding details
 @access   -   private (only accessible to admins/superadmins)
 */
-router.get("/search/:id", async (req, res) => {
+router.get("/building/search/:id", async (req, res) => {
   try {
     const id = req.params.id;
     const building = await Building.findById(id);
@@ -46,7 +46,7 @@ router.get("/search/:id", async (req, res) => {
 @desc     -   Endpoint to create the building
 @access   -   private (only accessible to admins/superadmins)
 */
-router.post("/create", isSuperAdminOrAdmin, async (req, res) => {
+router.post("/building/create", isSuperAdminOrAdmin, async (req, res) => {
   const { name, address, numberOfUnits } = req.body;
   const createdBy = {
     _id: req.user._id,
@@ -78,7 +78,7 @@ router.post("/create", isSuperAdminOrAdmin, async (req, res) => {
 @access   -   private (only accessible to admins/superadmins)
 */
 
-router.put("/update", isSuperAdminOrAdmin, async (req, res) => {
+router.put("/building/update", isSuperAdminOrAdmin, async (req, res) => {
   const buildingId = req.query.id;
   const updateField = ({ name, address, numberOfUnits, isActive } = req.body);
   const lastUpdatedBy = {
@@ -108,7 +108,7 @@ router.put("/update", isSuperAdminOrAdmin, async (req, res) => {
 @access   -   private (only accessible to admins/superadmins)
 */
 router.put(
-  "/assign/:userId/:buildingId",
+  "/building/assign/:userId/:buildingId",
   isSuperAdminOrAdmin,
   async (req, res) => {
     const userId = req.params.userId;
