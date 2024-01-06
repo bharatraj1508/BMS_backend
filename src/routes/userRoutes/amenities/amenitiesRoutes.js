@@ -2,9 +2,9 @@ const express = require("express");
 const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const Building = mongoose.model("Building");
-const requireToken = require("../../middleware/requireToken");
-const isSuperAdminOrAdmin = require("../../middleware/isSuperAdminOrAdmin");
-const isManager = require("../../middleware/isManager");
+const requireToken = require("../../../middleware/requireToken");
+const isSuperAdminOrAdmin = require("../../../middleware/isSuperAdminOrAdmin");
+const isManager = require("../../../middleware/isManager");
 
 const router = express.Router();
 

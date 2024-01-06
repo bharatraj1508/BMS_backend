@@ -1,83 +1,25 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const User = mongoose.model("User");
-const Audit = mongoose.model("Audit");
-const requireToken = require("../middleware/requireToken");
-const isSuperAdminOrAdmin = require("../middleware/isSuperAdminOrAdmin");
-const isSuperAdmin = require("../middleware/isSuperAdminOrAdmin");
+const Hash = mongoose.model("Hash");
+const requireToken = require("../../../middleware/requireToken");
+const isSuperAdminOrAdmin = require("../../../middleware/isSuperAdminOrAdmin");
+
+const {
+  checkAdminUserRoles,
+  checkAdminChange,
+  correctAccountType,
+  randomString,
+} = require("../../../utils/accountFunctions");
+
+const { createAudit } = require("../../../utils/auditfunctions");
+
+const { sendEmailVerification } = require("../../../utils/mailFunction");
 
 const router = express.Router();
 
 router.use(requireToken);
 router.use(isSuperAdminOrAdmin);
-
-// function to check how many true values are there in the user roles (it wont allow more than one true values)
-const checkTrueRoles = (req) => {
-  const roles = [
-    "isSuperAdmin",
-    "isAdmin",
-    "isSupervisor",
-    "isManager",
-    "isSecurity",
-    "isResident",
-  ];
-
-  const adminRoles = ["isSuperAdmin", "isAdmin"];
-  const userRoles = ["isSupervisor", "isManager", "isSecurity", "isResident"];
-
-  const trueRoles = roles.filter((role) => JSON.parse(req.body[role]));
-
-  var adminFlag = false;
-  var userFlag = false;
-
-  for (let role of trueRoles) {
-    if (adminRoles.includes(role)) {
-      adminFlag = true;
-    } else if (userRoles.includes(role)) {
-      userFlag = true;
-    } else {
-      adminFlag = false;
-      userFlag = false;
-    }
-  }
-
-  if (adminFlag && userFlag) {
-    return true;
-  }
-
-  return false;
-};
-
-// function to check if the admin does not create or update superadmin or admin accounts
-const checkAdminChange = (req, adminRoles) => {
-  if (
-    (JSON.parse(adminRoles.isSuperAdmin) &&
-      req.user.accountType !== "superadmin") ||
-    (JSON.parse(adminRoles.isAdmin) && req.user.accountType !== "superadmin")
-  ) {
-    return true;
-  }
-};
-
-// function to assign correct account type in case if its null or wrong account type.
-const correctAccountType = (accountRoles, accountType) => {
-  if (JSON.parse(accountRoles.isSuperAdmin)) {
-    accountType = "superadmin";
-  } else if (JSON.parse(accountRoles.isAdmin)) {
-    accountType = "admin";
-  } else if (
-    JSON.parse(accountRoles.isManager) ||
-    JSON.parse(accountRoles.isSupervisor) ||
-    JSON.parse(accountRoles.isSecurity) ||
-    JSON.parse(accountRoles.isResident)
-  ) {
-    accountType = "user";
-  }
-
-  return accountType;
-};
-
-// Routes starts here
 
 /*
 @type     -   GET
@@ -135,7 +77,7 @@ router.post("/user/signup", async (req, res) => {
 
   try {
     if (!req.user.isSuperAdmin) {
-      if (checkTrueRoles(req)) {
+      if (checkAdminUserRoles(req)) {
         throw new Error(
           "An account cannot have admin and user access type both."
         );
@@ -169,31 +111,42 @@ router.post("/user/signup", async (req, res) => {
       },
     });
 
-    const savedUser = await user.save();
+    await user.save().then(async (user) => {
+      if (user) {
+        details = {
+          action: "insert",
+          status: "success",
+          message: `Account created successfully for ${user.email}`,
+        };
 
-    const audit = new Audit({
-      userId: req.user._id,
-      actionBy: `${req.user.firstName} ${req.user.lastName}`,
-      email: req.user.email,
-      action: "insert",
-      status: "success",
-      message: `created an account with email ${savedUser.email}`,
-      timestamp: new Date(),
+        const audit = createAudit(req, details);
+
+        await audit.save();
+
+        const hashValue = randomString(128);
+
+        const hash = new Hash({
+          userId: user._id,
+          hash: hashValue,
+        });
+
+        await hash.save();
+
+        sendEmailVerification(res, user.email, hashValue);
+      } else {
+        throw new Error("unable to save user");
+      }
     });
 
-    await audit.save();
-
-    res.send({ message: "Account Created Successfully", user: savedUser });
+    res.send({ message: "Account Created Successfully" });
   } catch (err) {
-    const audit = new Audit({
-      userId: req.user._id,
-      actionBy: `${req.user.firstName} ${req.user.lastName}`,
-      email: req.user.email,
+    details = {
       action: "insert",
       status: "failure",
       message: err.message,
-      timestamp: new Date(),
-    });
+    };
+
+    const audit = createAudit(req, details);
 
     await audit.save();
     return res.status(500).send({ error: err.message });
@@ -256,7 +209,7 @@ router.put("/user/update", async (req, res) => {
 
   try {
     if (!req.user.isSuperAdmin) {
-      if (checkTrueRoles(req)) {
+      if (checkAdminUserRoles(req)) {
         throw new Error(
           "An account cannot have admin and user access type both."
         );
@@ -303,27 +256,22 @@ router.put("/user/update", async (req, res) => {
       .status(200)
       .send({ message: "Account updated successfully", updatedUser });
 
-    const audit = new Audit({
-      userId: req.user._id,
-      actionBy: `${req.user.firstName} ${req.user.lastName}`,
-      email: req.user.email,
+    details = {
       action: "update",
       status: "success",
+      message: "Account updated successfully",
       impactedUser: {
         _id: user._id,
         email: user.email,
       },
-      message: `Successfully updated the acccount`,
-      details: trackValue,
-      timestamp: new Date(),
-    });
+      trackValue: trackValue,
+    };
+
+    const audit = createAudit(req, details);
 
     await audit.save();
   } catch (err) {
-    const audit = new Audit({
-      userId: req.user._id,
-      actionBy: `${req.user.firstName} ${req.user.lastName}`,
-      email: req.user.email,
+    details = {
       action: "update",
       status: "failure",
       impactedUser: {
@@ -331,8 +279,9 @@ router.put("/user/update", async (req, res) => {
         email: user.email,
       },
       message: err.message,
-      timestamp: new Date(),
-    });
+    };
+
+    const audit = createAudit(req, details);
 
     await audit.save();
     return res.status(500).send({ error: err.message });
