@@ -1,5 +1,5 @@
-const promise = require("promise");
-const nodemailer = require("nodemailer");
+// const promise = require("promise");
+// const nodemailer = require("nodemailer");
 const sgMail = require("@sendgrid/mail");
 
 const sendEmailVerification = async (res, email, token) => {
