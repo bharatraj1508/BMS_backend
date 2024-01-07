@@ -135,7 +135,7 @@ router.post("/user/signup", async (req, res) => {
 
         await hash.save();
 
-        sendEmailVerification(res, user.email, token);
+        await sendEmailVerification(res, user.email, token);
         res.send({ message: "Account Created Successfully", user });
       } else {
         throw new Error("unable to save user");
