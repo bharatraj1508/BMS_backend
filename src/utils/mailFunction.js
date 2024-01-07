@@ -1,7 +1,7 @@
-const { hash } = require("bcryptjs");
+const promise = require("promise");
 const nodemailer = require("nodemailer");
 
-const sendEmailVerification = (res, email, token) => {
+const sendEmailVerification = async (res, email, token) => {
   const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -24,12 +24,16 @@ const sendEmailVerification = (res, email, token) => {
     ${process.env.DEV_BASE_URL}/verification?token=${token}`,
   };
 
-  transporter.sendMail(mail_option, (err, info) => {
-    if (err) {
-      console.log(err);
-    } else {
-      res.redirect("/verification");
-    }
+  await new promise((resolve, reject) => {
+    transporter.sendMail(mail_option, (err, info) => {
+      if (err) {
+        console.log(err);
+        reject(err);
+      } else {
+        resolve(info);
+        res.redirect("/verification");
+      }
+    });
   });
 };
 
