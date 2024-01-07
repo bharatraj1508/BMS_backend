@@ -1,17 +1,7 @@
-// const promise = require("promise");
-// const nodemailer = require("nodemailer");
 const sgMail = require("@sendgrid/mail");
 
 const sendEmailVerification = async (res, email, token) => {
-  // const transporter = nodemailer.createTransport({
-  //   service: "Gmail",
-  //   auth: {
-  //     user: "bharat.raj1508@gmail.com",
-  //     pass: process.env.MAILER_PASS,
-  //   },
-  // });
   var mailResponse;
-
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
   const mail_option = {
@@ -32,18 +22,6 @@ const sendEmailVerification = async (res, email, token) => {
     .send(mail_option)
     .then((response) => (mailResponse = response))
     .catch((err) => console.log(err));
-
-  // await new promise((resolve, reject) => {
-  //   transporter.sendMail(mail_option, (err, info) => {
-  //     if (err) {
-  //       console.log(err);
-  //       reject(err);
-  //     } else {
-  //       resolve(info);
-  //       res.redirect("/verification");
-  //     }
-  //   });
-  // });
 
   return mailResponse;
 };
