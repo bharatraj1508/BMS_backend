@@ -78,45 +78,45 @@ router.get("/refreshToken", async (req, res) => {
 @desc     -   Endpoint to verify the user email.
 @access   -   public
 */
-router.get("/verification", async (req, res) => {
-  try {
-    const token = req.query.token;
+// router.get("/verification", async (req, res) => {
+//   try {
+//     const token = req.query.token;
 
-    jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
-      if (err) {
-        return res.status(401).send({ error: err });
-      }
+//     jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
+//       if (err) {
+//         return res.status(401).send({ error: err });
+//       }
 
-      // Extract the userId from the payload
-      const { hash } = payload;
+//       // Extract the userId from the payload
+//       const { hash } = payload;
 
-      try {
-        const hashDoc = await Hash.findOne({ hash });
+//       try {
+//         const hashDoc = await Hash.findOne({ hash });
 
-        if (hashDoc) {
-          const user = await User.findById(hashDoc.userId);
+//         if (hashDoc) {
+//           const user = await User.findById(hashDoc.userId);
 
-          if (user) {
-            await User.updateOne({ _id: hashDoc.userId }, { isVerified: true });
-            await Hash.deleteMany({ userId: user._id });
-            res.send({ message: "Account verified successfully" });
-          } else {
-            throw new Error("This user does not exist");
-          }
-        } else {
-          res.status(404).send({
-            error:
-              "Either the link is expired or the account is already verified",
-          });
-        }
-      } catch (err) {
-        res.status(500).send({ error: err.message });
-      }
-    });
-  } catch (err) {
-    res.status(500).send({ error: err.message });
-  }
-});
+//           if (user) {
+//             await User.updateOne({ _id: hashDoc.userId }, { isVerified: true });
+//             await Hash.deleteMany({ userId: user._id });
+//             res.send({ message: "Account verified successfully" });
+//           } else {
+//             throw new Error("This user does not exist");
+//           }
+//         } else {
+//           res.status(404).send({
+//             error:
+//               "Either the link is expired or the account is already verified",
+//           });
+//         }
+//       } catch (err) {
+//         res.status(500).send({ error: err.message });
+//       }
+//     });
+//   } catch (err) {
+//     res.status(500).send({ error: err.message });
+//   }
+// });
 
 /*
 @type     -   GET
@@ -140,7 +140,11 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
         hash: hashValue,
       });
       await hash.save();
-      sendEmailVerification(res, req.user.email, token);
+
+      const mailResponse = sendEmailVerification(res, req.user.email, token);
+      if (!mailResponse) {
+        throw new Error("unable to send the verification email");
+      }
     } else {
       const hash = new Hash({
         userId: id,
@@ -152,14 +156,22 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
           if (user.isVerified) {
             throw new Error("Account is alreadty verified");
           }
-          sendEmailVerification(res, user.email, token);
+
+          const mailResponse = sendEmailVerification(res, user.email, token);
+          console.log(mailResponse);
+          if (!mailResponse) {
+            throw new Error("unable to send the verification email");
+          }
         } else {
           throw new Error("Something went wrong. Please contact admin");
         }
       });
     }
 
-    res.send({ message: "Email has been sent for verification" });
+    res.send({
+      message:
+        "Account Created Successfully and email has been sent for verification",
+    });
   } catch (err) {
     res.status(500).send({ error: err.message });
   }
