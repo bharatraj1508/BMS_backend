@@ -135,8 +135,15 @@ router.post("/user/signup", async (req, res) => {
 
         await hash.save();
 
-        await sendEmailVerification(res, user.email, token);
-        res.send({ message: "Account Created Successfully", user });
+        const mailResponse = sendEmailVerification(res, user.email, token);
+        if (!mailResponse) {
+          throw new Error("unable to send the verification email");
+        }
+        res.send({
+          message:
+            "Account Created Successfully and email has been sent for verification",
+          user,
+        });
       } else {
         throw new Error("unable to save user");
       }
