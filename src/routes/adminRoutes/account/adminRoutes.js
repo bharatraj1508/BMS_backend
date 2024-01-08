@@ -14,7 +14,7 @@ const {
 
 const { createAudit } = require("../../../utils/auditfunctions");
 
-const { sendEmailVerification } = require("../../../utils/mailFunction");
+const { sendEmailVerification } = require("../../../utils/mailer");
 const { emailToken } = require("../../../security/tokens");
 
 const router = express.Router();
@@ -135,7 +135,7 @@ router.post("/user/signup", async (req, res) => {
 
         await hash.save();
 
-        const mailResponse = sendEmailVerification(res, user.email, token);
+        const mailResponse = sendEmailVerification(user.email, token);
         if (!mailResponse) {
           throw new Error("unable to send the verification email");
         }

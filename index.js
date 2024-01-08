@@ -13,6 +13,8 @@ const publicAuthRoutes = require("./src/routes/userRoutes/publicAuthRoutes");
 const buildingRoutes = require("./src/routes/adminRoutes/building/crudRoutes");
 const amenitiesRoutes = require("./src/routes/userRoutes/amenities/amenitiesRoutes");
 const combinedRouter = express.Router();
+const hbs = require("express-handlebars");
+const path = require("path");
 
 const app = express();
 
@@ -21,6 +23,16 @@ app.use(cors());
 
 // Middleware for parsing JSON requests
 app.use(bodyParser.json());
+
+app.engine(
+  ".hbs",
+  hbs.engine({
+    extname: ".hbs",
+  })
+);
+
+app.set("view engine", ".hbs");
+app.set("views", path.join(process.cwd(), "src/utils/views"));
 
 // MongoDB connection URI
 const mongoUri = process.env.MONGOURI;

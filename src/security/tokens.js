@@ -45,8 +45,17 @@ const emailToken = (hashValue) => {
   return mailToken;
 };
 
+const ResetPasswordToken = (id) => {
+  const resetToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
+    expiresIn: "15m",
+  });
+
+  return resetToken;
+};
+
 module.exports = {
   setToken,
   setNewAccessToken,
   emailToken,
+  ResetPasswordToken,
 };
