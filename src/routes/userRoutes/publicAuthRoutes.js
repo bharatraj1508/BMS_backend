@@ -20,6 +20,7 @@ const {
 const {
   sendEmailVerification,
   sentPasswordResetEmail,
+  sendPasswordChangeConfirmation,
 } = require("../../utils/mailer");
 const { randomString } = require("../../utils/accountFunctions");
 
@@ -247,7 +248,13 @@ router.post("/password/reset/submit", urlencodedParser, async (req, res) => {
 
   try {
     await User.updateOne({ _id: id }, { password: newPassword });
-    res.status(200).send({ message: "Password has been reset successfully" });
+    await User.findById(id).then(async (user) => {
+      const mailResponse = sendPasswordChangeConfirmation(user.email);
+      if (!mailResponse) {
+        return res.status(400).send({ message: "Unable to send the email" });
+      }
+      res.status(200).send({ message: "Password has been reset successfully" });
+    });
   } catch (err) {
     res.send({ error: err.message });
   }
