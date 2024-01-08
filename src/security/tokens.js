@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 
 const setToken = (id) => {
-  console.log(process.env.MY_SECRET_KEYS);
   const accessToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
     expiresIn: "1h",
   });
@@ -45,8 +44,17 @@ const emailToken = (hashValue) => {
   return mailToken;
 };
 
+const ResetPasswordToken = (id) => {
+  const resetToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
+    expiresIn: "15m",
+  });
+
+  return resetToken;
+};
+
 module.exports = {
   setToken,
   setNewAccessToken,
   emailToken,
+  ResetPasswordToken,
 };

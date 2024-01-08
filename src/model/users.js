@@ -110,6 +110,33 @@ userSchema.pre("save", function (next) {
   });
 });
 
+// Middleware function executed before updating the user
+userSchema.pre("updateOne", function (next) {
+  const update = this._update;
+
+  // Check if the password is being modified in the update
+  if (!update || !update.password) {
+    return next();
+  }
+
+  // Generate a salt and hash the new password
+  bcrypt.genSalt(10, (err, salt) => {
+    if (err) {
+      return next(err);
+    }
+
+    bcrypt.hash(update.password, salt, (err, hash) => {
+      if (err) {
+        return next(err);
+      }
+
+      // Set the hashed password in the update
+      update.password = hash;
+      next();
+    });
+  });
+});
+
 // Method to compare passwords
 userSchema.methods.comparePassword = function (userPassword) {
   const user = this;

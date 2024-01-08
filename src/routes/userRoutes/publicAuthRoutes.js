@@ -6,6 +6,8 @@ const cookieParser = require("cookie-parser");
 const router = express.Router();
 const requireToken = require("../../middleware/requireToken");
 const jwt = require("jsonwebtoken");
+const bodyParser = require("body-parser");
+const urlencodedParser = bodyParser.urlencoded({ extended: true });
 
 router.use(cookieParser());
 
@@ -13,8 +15,12 @@ const {
   setToken,
   setNewAccessToken,
   emailToken,
+  ResetPasswordToken,
 } = require("../../security/tokens");
-const { sendEmailVerification } = require("../../utils/mailFunction");
+const {
+  sendEmailVerification,
+  sentPasswordResetEmail,
+} = require("../../utils/mailer");
 const { randomString } = require("../../utils/accountFunctions");
 
 /*
@@ -51,14 +57,17 @@ router.post("/signin", async (req, res) => {
       })
       .send({ token: accessToken });
   } catch (err) {
-    res.status(500).send({ error: err.message });
+    if (err) {
+      return res.send({ error: "Invalid email or password" });
+    }
+    res.status(500).send({ error: err });
   }
 });
 
 /*
 @type     -   GET
 @route    -   /refreshToken
-@desc     -   Endpoint to signin the accounts.
+@desc     -   Endpoint to create a new access token using the refresh token.
 @access   -   public
 */
 router.get("/refreshToken", async (req, res) => {
@@ -123,7 +132,7 @@ router.get("/verification", async (req, res) => {
 @route    -   /user/email/verification
 @desc     -   Endpoint to verify the user email if it has not been done during signup process.
               This endpoint may take id also if verification email has to send to any other user.
-@access   -   private
+@access   -   private (only accessible to the logged in users)
 */
 router.get("/user/email/verify", requireToken, async (req, res) => {
   try {
@@ -158,7 +167,6 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
           }
 
           const mailResponse = sendEmailVerification(res, user.email, token);
-          console.log(mailResponse);
           if (!mailResponse) {
             throw new Error("Unable to send the verification email");
           }
@@ -173,6 +181,75 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
     });
   } catch (err) {
     res.status(500).send({ error: err.message });
+  }
+});
+
+/*
+@type     -   GET
+@route    -   /account/reset/password
+@desc     -   Endpoint to reset the password for the accounts.
+@access   -   public
+*/
+router.get("/account/password/reset", async (req, res) => {
+  try {
+    const { email } = req.body;
+    await User.findOne({ email }).then((user) => {
+      if (user) {
+        const resetToken = ResetPasswordToken(user._id);
+        const mailResponse = sentPasswordResetEmail(user.email, resetToken);
+        if (!mailResponse) {
+          return res.status(400).send({ message: "Unable to send the email" });
+        }
+        res.status(200).send({ message: "Email has been sent successfully" });
+      } else {
+        return res
+          .status(404)
+          .send({ message: "User for the given email not found." });
+      }
+    });
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
+
+/*
+@type     -   GET
+@route    -   /account/reset/password
+@desc     -   Endpoint to reset the password for the accounts.
+@access   -   public
+*/
+router.get("/password/reset/callback", async (req, res) => {
+  try {
+    const token = req.query.token;
+
+    jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
+      if (err) {
+        return res.status(401).send({ error: err });
+      }
+
+      // Extract the userId from the payload
+      const { userId } = payload;
+
+      try {
+        res.render("resetPassword", { id: userId, layout: false });
+      } catch (err) {
+        res.status(500).send({ error: err.message });
+      }
+    });
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
+
+router.post("/password/reset/submit", urlencodedParser, async (req, res) => {
+  const newPassword = req.body.password;
+  const id = req.query.id;
+
+  try {
+    await User.updateOne({ _id: id }, { password: newPassword });
+    res.status(200).send({ message: "Password has been reset successfully" });
+  } catch (err) {
+    res.send({ error: err.message });
   }
 });
 
