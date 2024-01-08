@@ -167,7 +167,6 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
           }
 
           const mailResponse = sendEmailVerification(res, user.email, token);
-          console.log(mailResponse);
           if (!mailResponse) {
             throw new Error("Unable to send the verification email");
           }
@@ -194,7 +193,6 @@ router.get("/user/email/verify", requireToken, async (req, res) => {
 router.get("/account/password/reset", async (req, res) => {
   try {
     const { email } = req.body;
-    console.log(email);
     await User.findOne({ email }).then((user) => {
       if (user) {
         const resetToken = ResetPasswordToken(user._id);

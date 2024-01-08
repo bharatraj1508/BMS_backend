@@ -123,8 +123,6 @@ router.put(
       const user = await User.findById(userId);
       const building = await Building.findById(buildilngId);
 
-      console.log(userId, buildilngId);
-
       if (!(user || building)) {
         throw new Error("Either budiling or user does not exist.");
       }

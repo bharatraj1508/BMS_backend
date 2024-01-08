@@ -116,7 +116,6 @@ userSchema.pre("updateOne", function (next) {
 
   // Check if the password is being modified in the update
   if (!update || !update.password) {
-    console.log("here");
     return next();
   }
 
