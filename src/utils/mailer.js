@@ -56,7 +56,33 @@ const sentPasswordResetEmail = async (email, token) => {
   }
 };
 
+const sendPasswordChangeConfirmation = async (email) => {
+  const mail_option = {
+    to: email,
+    from: "no.reply2This@outlook.com",
+    subject: "Password Reset Successfully",
+    text: `Hi,
+    This is to confirm that the password for your account has been successfully changed. Your account is now secured with the new password that you have set.
+    If you did not change your password, please contact us immediately to report any unauthorized access to your account.`,
+    html: `<p> Hi, <p> </br></br>
+    <p>This is to confirm that the password for your account has been successfully changed. Your account is now secured with the new password that you have set.<p></br>
+    <p> If you did not change your password, please contact us immediately to report any unauthorized access to your account.</p>`,
+  };
+
+  try {
+    await sgMail
+      .send(mail_option)
+      .then((response) => (mailResponse = response))
+      .catch((err) => console.log(err));
+
+    return mailResponse;
+  } catch (err) {
+    throw new Error(err.message);
+  }
+};
+
 module.exports = {
   sendEmailVerification,
   sentPasswordResetEmail,
+  sendPasswordChangeConfirmation,
 };
