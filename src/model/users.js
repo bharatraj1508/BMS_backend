@@ -131,7 +131,6 @@ userSchema.pre("updateOne", function (next) {
       }
 
       // Set the hashed password in the update
-      console.log("here");
       update.password = hash;
       next();
     });
