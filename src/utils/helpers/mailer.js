@@ -18,14 +18,52 @@ const sendEmailVerification = async (email, token) => {
   };
 
   try {
-    await sgMail
-      .send(mail_option)
-      .then((response) => (mailResponse = response))
-      .catch((err) => console.log(err));
-
-    return mailResponse;
+    await sgMail.send(mail_option);
+    return true;
   } catch (err) {
-    throw new Error(err.message);
+    throw new Error(err);
+  }
+};
+
+const sendAccountSetupEmail = async (email, name, token) => {
+  const mail_option = {
+    to: email,
+    from: "no.reply2This@outlook.com",
+    subject: "Setup Your Account",
+    text: `Hi ${name}},
+    Your account has seccessfully created on Building Management System. In order to complete the signup process, please click on the link below to setup your password.
+    This link will expire in 15 minutes.
+    ${process.env.DEV_BASE_URL}/register/callback?ut=${token}`,
+    html: `<p> Hi, ${name}<p> </br></br>
+    <p>Your account has seccessfully created on Building Management System. In order to complete the signup process, please click on the link below to setup your password.<p></br>
+    <p>This link will expite in 15 minutes.</p></br></br>
+    ${process.env.DEV_BASE_URL}/register/callback?ut=${token}`,
+  };
+
+  try {
+    await sgMail.send(mail_option);
+    return true;
+  } catch (err) {
+    throw new Error(err);
+  }
+};
+
+const sendAccountSetupConfirmation = async (email, name) => {
+  const mail_option = {
+    to: email,
+    from: "no.reply2This@outlook.com",
+    subject: "Acount Setup Successfull",
+    text: `Hi ${name}},
+    Your account has seccessfully setup on Building Management System. Please login to your account with new credentials.`,
+    html: `<p> Hi, ${name}<p> </br></br>
+    <p>Your account has seccessfully setup on Building Management System. Please login to your account with new credentials.<p></br>`,
+  };
+
+  try {
+    await sgMail.send(mail_option);
+    return true;
+  } catch (err) {
+    throw new Error(err);
   }
 };
 
@@ -85,4 +123,6 @@ module.exports = {
   sendEmailVerification,
   sentPasswordResetEmail,
   sendPasswordChangeConfirmation,
+  sendAccountSetupEmail,
+  sendAccountSetupConfirmation,
 };

@@ -21,8 +21,15 @@ const {
   sendEmailVerification,
   sentPasswordResetEmail,
   sendPasswordChangeConfirmation,
-} = require("../../utils/mailer");
-const { randomString } = require("../../utils/accountFunctions");
+  sendAccountSetupEmail,
+  sendAccountSetupConfirmation,
+} = require("../../utils/helpers/mailer");
+
+const {
+  randomString,
+  compareHashAndReturnId,
+  setHashRecord,
+} = require("../../utils/helpers/hashFunctions");
 
 /*
 @type     -   POST
@@ -101,30 +108,80 @@ router.get("/verification", async (req, res) => {
       const { hash } = payload;
 
       try {
-        const hashDoc = await Hash.findOne({ hash });
+        const id = await compareHashAndReturnId(hash);
 
-        if (hashDoc) {
-          const user = await User.findById(hashDoc.userId);
-
-          if (user) {
-            await User.updateOne({ _id: hashDoc.userId }, { isVerified: true });
-            await Hash.deleteMany({ userId: user._id });
-            res.send({ message: "Account verified successfully" });
-          } else {
-            throw new Error("This user does not exist");
-          }
-        } else {
-          res.status(404).send({
-            error:
-              "Either the link is expired or the account is already verified",
-          });
+        if (id === null) {
+          throw new Error("Unrecorded hash");
         }
+        await User.updateOne({ _id: id }, { isVerified: true });
+        await Hash.deleteMany({ hash });
+        res.send({ message: "Account verified successfully" });
       } catch (err) {
         res.status(500).send({ error: err.message });
       }
     });
   } catch (err) {
     res.status(500).send({ error: err.message });
+  }
+});
+
+/*
+@type     -   GET
+@route    -   /verification
+@desc     -   Endpoint to verify the user email.
+@access   -   public
+*/
+router.get("/register/callback", async (req, res) => {
+  try {
+    const token = req.query.ut;
+
+    jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
+      if (err) {
+        return res.status(401).send({ error: err });
+      }
+
+      // Extract the userId from the payload
+      const { hash } = payload;
+
+      try {
+        const id = await compareHashAndReturnId(hash);
+
+        if (id === null) {
+          throw new Error("Unrecorded hash");
+        }
+        res.render("resetPassword", {
+          id: id,
+          title: "Setup Password",
+          action: "/register/submit",
+          layout: false,
+        });
+        // await User.updateOne({ _id: id }, { isVerified: true });
+        // await Hash.deleteMany({ hash });
+        // res.send({ message: "Account verified successfully" });
+      } catch (err) {
+        res.status(500).send({ error: err.message });
+      }
+    });
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
+
+router.post("/register/submit", urlencodedParser, async (req, res) => {
+  const newPassword = req.body.password;
+  const id = req.query.id;
+
+  try {
+    await User.updateOne(
+      { _id: id },
+      { password: newPassword, isVerified: true }
+    );
+    const user = await User.findById(id);
+    console.log(user);
+    await sendAccountSetupConfirmation(user.email, user.firstName);
+    res.status(200).send({ message: "Account has been setup successfully" });
+  } catch (err) {
+    res.send({ error: err.message });
   }
 });
 

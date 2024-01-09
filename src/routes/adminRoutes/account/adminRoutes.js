@@ -9,12 +9,16 @@ const {
   checkAdminUserRoles,
   checkAdminChange,
   correctAccountType,
+} = require("../../../utils/helpers/accountFunctions");
+
+const {
   randomString,
-} = require("../../../utils/accountFunctions");
+  setHashRecord,
+} = require("../../../utils/helpers/hashFunctions");
 
-const { createAudit } = require("../../../utils/auditfunctions");
+const { createAudit } = require("../../../utils/helpers/auditfunctions");
 
-const { sendEmailVerification } = require("../../../utils/mailer");
+const { sendAccountSetupEmail } = require("../../../utils/helpers/mailer");
 const { emailToken } = require("../../../security/tokens");
 
 const router = express.Router();
@@ -112,42 +116,30 @@ router.post("/user/signup", async (req, res) => {
       },
     });
 
-    await user.save().then(async (user) => {
-      if (user) {
-        details = {
-          action: "insert",
-          status: "success",
-          message: `Account created successfully for ${user.email}`,
-        };
+    const savedUser = await user.save();
 
-        const audit = createAudit(req, details);
+    details = {
+      action: "insert",
+      status: "success",
+      message: `Account created successfully for ${savedUser.email}`,
+    };
 
-        await audit.save();
+    const audit = createAudit(req, details);
 
-        const hashValue = randomString(128);
+    await audit.save();
 
-        const token = emailToken(hashValue);
+    const hashValue = randomString(128);
 
-        const hash = new Hash({
-          userId: user._id,
-          hash: hashValue,
-        });
+    const token = emailToken(hashValue);
 
-        await hash.save();
-
-        const mailResponse = sendEmailVerification(user.email, token);
-        if (!mailResponse) {
-          throw new Error("unable to send the verification email");
-        }
-        res.send({
-          message:
-            "Account Created Successfully and email has been sent for verification",
-          user,
-        });
-      } else {
-        throw new Error("unable to save user");
-      }
-    });
+    if (setHashRecord(hashValue, user._id)) {
+      // await sendEmailVerification(user.email, token);
+      await sendAccountSetupEmail(savedUser.email, savedUser.firstName, token);
+      res.send({
+        message: "Account Created Successfully and email has been sent.",
+        user,
+      });
+    }
   } catch (err) {
     details = {
       action: "insert",
