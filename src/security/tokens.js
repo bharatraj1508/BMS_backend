@@ -36,16 +36,16 @@ const setNewAccessToken = (res, refreshToken) => {
   }
 };
 
-const emailToken = (hashValue) => {
+const accountSetupToken = (hashValue) => {
   const mailToken = jwt.sign({ hash: hashValue }, process.env.MY_SECRET_KEY, {
-    expiresIn: "15m",
+    expiresIn: "1d",
   });
 
   return mailToken;
 };
 
-const ResetPasswordToken = (id) => {
-  const resetToken = jwt.sign({ userId: id }, process.env.MY_SECRET_KEY, {
+const ResetPasswordToken = (hashValue) => {
+  const resetToken = jwt.sign({ hash: hashValue }, process.env.MY_SECRET_KEY, {
     expiresIn: "15m",
   });
 
@@ -55,6 +55,6 @@ const ResetPasswordToken = (id) => {
 module.exports = {
   setToken,
   setNewAccessToken,
-  emailToken,
+  accountSetupToken,
   ResetPasswordToken,
 };

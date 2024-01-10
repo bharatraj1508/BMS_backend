@@ -14,12 +14,12 @@ router.use(cookieParser());
 const {
   setToken,
   setNewAccessToken,
-  emailToken,
+  accountSetupToken,
   ResetPasswordToken,
 } = require("../../security/tokens");
 const {
   sendEmailVerification,
-  sentPasswordResetEmail,
+  sendPasswordResetEmail,
   sendPasswordChangeConfirmation,
   sendAccountSetupEmail,
   sendAccountSetupConfirmation,
@@ -91,44 +91,9 @@ router.get("/refreshToken", async (req, res) => {
 
 /*
 @type     -   GET
-@route    -   /verification
-@desc     -   Endpoint to verify the user email.
-@access   -   public
-*/
-router.get("/verification", async (req, res) => {
-  try {
-    const token = req.query.token;
-
-    jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
-      if (err) {
-        return res.status(401).send({ error: err });
-      }
-
-      // Extract the userId from the payload
-      const { hash } = payload;
-
-      try {
-        const id = await compareHashAndReturnId(hash);
-
-        if (id === null) {
-          throw new Error("Unrecorded hash");
-        }
-        await User.updateOne({ _id: id }, { isVerified: true });
-        await Hash.deleteMany({ hash });
-        res.send({ message: "Account verified successfully" });
-      } catch (err) {
-        res.status(500).send({ error: err.message });
-      }
-    });
-  } catch (err) {
-    res.status(500).send({ error: err.message });
-  }
-});
-
-/*
-@type     -   GET
-@route    -   /verification
-@desc     -   Endpoint to verify the user email.
+@route    -   /register/callback
+@desc     -   Endpoint which will redirect to Password reset handlebar.
+              This api will accept the token and based on the hash inside tht token it will render the form with the Id saved for that hash.
 @access   -   public
 */
 router.get("/register/callback", async (req, res) => {
@@ -151,7 +116,7 @@ router.get("/register/callback", async (req, res) => {
 
         res.render("resetPassword", {
           id: id,
-          title: "Setup Password",
+          title: "Create Password",
           action: "/register/submit",
           layout: false,
         });
@@ -164,6 +129,12 @@ router.get("/register/callback", async (req, res) => {
   }
 });
 
+/*
+@type     -   PATCH
+@route    -   /register/callback
+@desc     -   Endpoint which will update the new password for the give id in the query parameter.
+@access   -   public
+*/
 router.post("/register/submit", urlencodedParser, async (req, res) => {
   const newPassword = req.body.password;
   const id = req.query.id;
@@ -184,8 +155,8 @@ router.post("/register/submit", urlencodedParser, async (req, res) => {
 
 /*
 @type     -   GET
-@route    -   /user/setup
-@desc     -   Endpoint to setup the user account with new password.
+@route    -   /account/setup
+@desc     -   Endpoint to setup the user account by providing their ID.
 @access   -   private (only accessible to the logged in users)
 */
 router.get("/account/setup", requireToken, async (req, res) => {
@@ -193,7 +164,7 @@ router.get("/account/setup", requireToken, async (req, res) => {
     const id = req.query.id;
     const hashValue = randomString(128);
 
-    const token = emailToken(hashValue);
+    const token = accountSetupToken(hashValue);
 
     const user = await User.findById(id);
 
@@ -212,23 +183,19 @@ router.get("/account/setup", requireToken, async (req, res) => {
 @desc     -   Endpoint to reset the password for the accounts.
 @access   -   public
 */
-router.get("/account/password/reset", async (req, res) => {
+router.get("/password/reset", async (req, res) => {
   try {
     const { email } = req.body;
-    await User.findOne({ email }).then((user) => {
-      if (user) {
-        const resetToken = ResetPasswordToken(user._id);
-        const mailResponse = sentPasswordResetEmail(user.email, resetToken);
-        if (!mailResponse) {
-          return res.status(400).send({ message: "Unable to send the email" });
-        }
-        res.status(200).send({ message: "Email has been sent successfully" });
-      } else {
-        return res
-          .status(404)
-          .send({ message: "User for the given email not found." });
-      }
-    });
+    const user = await User.findOne({ email });
+
+    const hashValue = randomString(128);
+
+    const token = ResetPasswordToken(hashValue);
+
+    if (setHashRecord(hashValue, user._id)) {
+      await sendPasswordResetEmail(email, token);
+      res.send({ message: "Email sent successfully." });
+    }
   } catch (err) {
     res.status(500).send({ error: err.message });
   }
@@ -237,12 +204,13 @@ router.get("/account/password/reset", async (req, res) => {
 /*
 @type     -   GET
 @route    -   /account/reset/password
-@desc     -   Endpoint to reset the password for the accounts.
+@desc     -   Endpoint which will redirect to Password reset handlebar.
+              This api will accept the token and based on the hash inside tht token it will render the form with the Id saved for that hash.
 @access   -   public
 */
 router.get("/password/reset/callback", async (req, res) => {
   try {
-    const token = req.query.token;
+    const token = req.query.ut;
 
     jwt.verify(token, "BHARAT_VERMA_DEV", async (err, payload) => {
       if (err) {
@@ -250,10 +218,20 @@ router.get("/password/reset/callback", async (req, res) => {
       }
 
       // Extract the userId from the payload
-      const { userId } = payload;
+      const { hash } = payload;
 
       try {
-        res.render("resetPassword", { id: userId, layout: false });
+        const id = await compareHashAndReturnId(hash);
+        if (id === null) {
+          throw new Error("Unrecorded hash or the link has been expired");
+        }
+
+        res.render("resetPassword", {
+          id: id,
+          title: "Reset Password",
+          action: "/password/reset/submit",
+          layout: false,
+        });
       } catch (err) {
         res.status(500).send({ error: err.message });
       }
@@ -263,19 +241,22 @@ router.get("/password/reset/callback", async (req, res) => {
   }
 });
 
+/*
+@type     -   PATCH
+@route    -   /register/callback
+@desc     -   Endpoint which will update the new password for the give id in the query parameter.
+@access   -   public
+*/
 router.post("/password/reset/submit", urlencodedParser, async (req, res) => {
   const newPassword = req.body.password;
   const id = req.query.id;
 
   try {
     await User.updateOne({ _id: id }, { password: newPassword });
-    await User.findById(id).then(async (user) => {
-      const mailResponse = sendPasswordChangeConfirmation(user.email);
-      if (!mailResponse) {
-        return res.status(400).send({ message: "Unable to send the email" });
-      }
-      res.status(200).send({ message: "Password has been reset successfully" });
-    });
+    await Hash.deleteMany({ userId: id });
+    const user = await User.findById(id);
+    await sendPasswordChangeConfirmation(user.email, user.firstName);
+    res.status(200).send({ message: "Account has been setup successfully" });
   } catch (err) {
     res.send({ error: err.message });
   }

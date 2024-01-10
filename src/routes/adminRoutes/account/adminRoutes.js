@@ -19,7 +19,7 @@ const {
 const { createAudit } = require("../../../utils/helpers/auditfunctions");
 
 const { sendAccountSetupEmail } = require("../../../utils/helpers/mailer");
-const { emailToken } = require("../../../security/tokens");
+const { accountSetupToken } = require("../../../security/tokens");
 
 const router = express.Router();
 
@@ -130,10 +130,9 @@ router.post("/user/signup", async (req, res) => {
 
     const hashValue = randomString(128);
 
-    const token = emailToken(hashValue);
+    const token = accountSetupToken(hashValue);
 
     if (setHashRecord(hashValue, user._id)) {
-      // await sendEmailVerification(user.email, token);
       await sendAccountSetupEmail(savedUser.email, savedUser.firstName, token);
       res.send({
         message: "Account Created Successfully and email has been sent.",
