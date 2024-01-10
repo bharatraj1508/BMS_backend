@@ -145,19 +145,16 @@ router.get("/register/callback", async (req, res) => {
 
       try {
         const id = await compareHashAndReturnId(hash);
-
         if (id === null) {
-          throw new Error("Unrecorded hash");
+          throw new Error("Unrecorded hash or the link has been expired");
         }
+
         res.render("resetPassword", {
           id: id,
           title: "Setup Password",
           action: "/register/submit",
           layout: false,
         });
-        // await User.updateOne({ _id: id }, { isVerified: true });
-        // await Hash.deleteMany({ hash });
-        // res.send({ message: "Account verified successfully" });
       } catch (err) {
         res.status(500).send({ error: err.message });
       }
@@ -176,8 +173,8 @@ router.post("/register/submit", urlencodedParser, async (req, res) => {
       { _id: id },
       { password: newPassword, isVerified: true }
     );
+    await Hash.deleteMany({ userId: id });
     const user = await User.findById(id);
-    console.log(user);
     await sendAccountSetupConfirmation(user.email, user.firstName);
     res.status(200).send({ message: "Account has been setup successfully" });
   } catch (err) {
@@ -187,56 +184,23 @@ router.post("/register/submit", urlencodedParser, async (req, res) => {
 
 /*
 @type     -   GET
-@route    -   /user/email/verification
-@desc     -   Endpoint to verify the user email if it has not been done during signup process.
-              This endpoint may take id also if verification email has to send to any other user.
+@route    -   /user/setup
+@desc     -   Endpoint to setup the user account with new password.
 @access   -   private (only accessible to the logged in users)
 */
-router.get("/user/email/verify", requireToken, async (req, res) => {
+router.get("/account/setup", requireToken, async (req, res) => {
   try {
     const id = req.query.id;
     const hashValue = randomString(128);
+
     const token = emailToken(hashValue);
 
-    if (!id) {
-      if (req.user.isVerified) {
-        throw new Error("Account is alreadty verified");
-      }
-      const hash = new Hash({
-        userId: req.user._id,
-        hash: hashValue,
-      });
-      await hash.save();
+    const user = await User.findById(id);
 
-      const mailResponse = sendEmailVerification(res, req.user.email, token);
-      if (!mailResponse) {
-        throw new Error("Unable to send the verification email");
-      }
-    } else {
-      const hash = new Hash({
-        userId: id,
-        hash: hashValue,
-      });
-      await hash.save();
-      await User.findById(id).then((user) => {
-        if (user) {
-          if (user.isVerified) {
-            throw new Error("Account is alreadty verified");
-          }
-
-          const mailResponse = sendEmailVerification(res, user.email, token);
-          if (!mailResponse) {
-            throw new Error("Unable to send the verification email");
-          }
-        } else {
-          throw new Error("Something went wrong. Please contact admin");
-        }
-      });
+    if (setHashRecord(hashValue, id)) {
+      await sendAccountSetupEmail(user.email, user.firstName, token);
+      res.send({ message: "Account setup email has been sent." });
     }
-
-    res.send({
-      message: "Email has been sent for verification",
-    });
   } catch (err) {
     res.status(500).send({ error: err.message });
   }
